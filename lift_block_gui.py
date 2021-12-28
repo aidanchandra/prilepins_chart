@@ -416,6 +416,7 @@ class auto_update():
 
     REPO_LINK = "https://github.com/aidanchandra/prilepins_chart"
 
+    #Hello world!
     def __init__(self) -> None:
         pass
     
