@@ -27,6 +27,9 @@ class lift_block_gui(tk.Frame):
         
         master.title("Lift Generator")
         
+        '''
+        Buttons for UI
+        '''
         self.lift_name_label = tk.Label(master, text="Lift Name")
         self.lift_name_entry = tk.Entry(master, width=15)
 
@@ -72,6 +75,15 @@ class lift_block_gui(tk.Frame):
         self.phase_label_var = StringVar()
         self.calculated_blocks = []
 
+        self.phase_label = Label(textvariable=self.phase_label_var)
+        self.phase_label.grid(row=2, column=6)
+
+        self.prev_phase_plot = tk.Button(text="Prev Phase", command=self.prev_graph)
+        self.prev_phase_plot.grid(row=2, column=5)
+        self.next_phase_plot = tk.Button(text="Next Phase", command=self.next_graph)
+        self.next_phase_plot.grid(row=2, column=7)
+        
+
 
         #PHASE GUI ELEMENTS
         self.phases = []
@@ -80,14 +92,12 @@ class lift_block_gui(tk.Frame):
         self.phase_scale_handler()
         self.pril_program = None
 
-
-        columns = (
-            ('Lifts', 50)
-        )
+        #Leftmost output pane
         self.output_tree = ttk.Treeview(self.master, columns=[""])
         self.output_tree.grid(row = 3, column = 10, columnspan=100, rowspan=4, sticky="nsew")
         self.output_tree.column("", width=300, anchor=tk.CENTER)
 
+        #Write to CSV buttons
         self.write_to_csv = Button(text="Write to CSV", command=self.write_csv)
         self.write_to_csv.grid(row=7, column=13)
         self.csv_filename_entry = Entry()
@@ -98,15 +108,9 @@ class lift_block_gui(tk.Frame):
         self.csv_write_all_sets = Checkbutton(text="Row per set", variable=self.all_set_bool_var)
         self.csv_write_all_sets.grid(row=7, column=15)
         
+        ##Foprce self update of graph
         self.update_graph()
 
-        self.phase_label = Label(textvariable=self.phase_label_var)
-        self.phase_label.grid(row=2, column=6)
-
-        self.prev_phase_plot = tk.Button(text="Prev Phase", command=self.prev_graph)
-        self.prev_phase_plot.grid(row=2, column=5)
-        self.next_phase_plot = tk.Button(text="Next Phase", command=self.next_graph)
-        self.next_phase_plot.grid(row=2, column=7)
         
 
     def debug(self):
@@ -137,43 +141,14 @@ class lift_block_gui(tk.Frame):
         self.current_graph_index -= 1
         self.update_graph()
 
-    def get_phase_as_figure(self, a):
-        
+    def get_phase_as_figure(self, graph_index:int):
         try:
-            block = self.calculated_blocks[a]
-            fig = Figure(figsize = (5, 5),
-                        dpi = 100)
-
-            x = []
-            actual_intensity_arr = []
-            weight_arr = []
-            volume_arr = []
-            i = 0
-            for session in block.sessions:
-                x.append(i)
-                i+=1
-                actual_intensity_arr.append(session.get_actual_intensity())
-                weight_arr.append(session.get_weight())
-                volume_arr.append(session.get_volume())
-
-            plot1 = fig.add_subplot(311)
-
-            #plot1.plot(actual_intensity_arr)
-            plot1.plot(x, actual_intensity_arr, label = "Actual Intensity")
-            ##TODO: Force integer x axis
-            plot2 = fig.add_subplot(312)
-
-            plot2.plot(x, weight_arr, label = "Weight")
-
-            plot3 = fig.add_subplot(313)
-
-            plot3.plot(x, volume_arr, label = "Volume")
-
-            plot3.legend()
-            plot2.legend()
-            plot1.legend()
-            return fig
-            
+            block = self.calculated_blocks[graph_index] ##This line should throw the error
+            #TODO: Clear the array after each new calculate
+            return block.get_as_figure()
+        
+        #If we haven't calculated data for that phase or if we try to render
+        # a graph out of bounds (which shouldn't happen)
         except IndexError:
             fig = Figure(figsize = (5, 5),
                         dpi = 100)
@@ -182,17 +157,20 @@ class lift_block_gui(tk.Frame):
             plot1.plot(y)
             return fig
 
+
     
 
     def update_graph(self):
+        """Sets two output variables 
+            current_graph and phase_label_var
+        """        
+        ##Set the title of the graphs to the current graph index
         try:
             self.phase_label_var.set((self.calculated_blocks[self.current_graph_index].phase_str()))
         except:
             self.phase_label_var.set("Phase " + str(self.current_graph_index+1))
 
-
-        # creating the Tkinter canvas
-        # containing the Matplotlib figure
+        ##Set the current graph
         self.current_graph = FigureCanvasTkAgg(self.get_phase_as_figure(self.current_graph_index),
                                 master = self.master)  
     
@@ -437,11 +415,11 @@ class auto_update():
 def main(): 
     root = tk.Tk()
     app = lift_block_gui(root)
-    if sys.argv[1] == 'D':
+    if len(sys.argv) > 1 and sys.argv[1] == 'D':
         app.debug()
     root.mainloop()
 
 if __name__ == '__main__':
-    updater_agent = auto_update()
-    updater_agent.update()
-    ##main()
+    #updater_agent = auto_update()
+    #updater_agent.update()
+    main()

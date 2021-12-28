@@ -1,6 +1,14 @@
 from typing import List
 import csv
 import time
+import matplotlib
+
+from matplotlib.figure import Figure
+from matplotlib.backends.backend_tkagg import (FigureCanvasTkAgg, 
+NavigationToolbar2Tk)
+from matplotlib.pyplot import plot, streamplot, text
+from random import randint
+from matplotlib.ticker import MaxNLocator
 
 class lift_set:
     def __init__(self, weight:float, reps:int, percent_onerm:float, actual_intensity:float) -> None:
@@ -127,6 +135,44 @@ class lift_block:
         with open(filename, 'w') as csvfile: 
             csvwriter = csv.writer(csvfile) 
             csvwriter.writerows(rows)
+    
+
+    def get_as_figure(self) -> Figure:
+
+        fig = Figure(figsize = (5, 5),
+                        dpi = 100)
+
+        x = []
+        actual_intensity_arr = []
+        weight_arr = []
+        volume_arr = []
+        i = 0
+        for session in self.sessions:
+            x.append(i)
+            i+=1
+            actual_intensity_arr.append(session.get_actual_intensity())
+            weight_arr.append(session.get_weight())
+            volume_arr.append(session.get_volume())
+
+        plot1 = fig.add_subplot(311)
+
+        #plot1.plot(actual_intensity_arr)
+        plot1.plot(x, actual_intensity_arr, label = "Actual Intensity")
+        ##TODO: Force integer x axis
+        plot2 = fig.add_subplot(312)
+
+        plot2.plot(x, weight_arr, label = "Weight")
+
+        plot3 = fig.add_subplot(313)
+
+        plot3.plot(x, volume_arr, label = "Volume")
+
+        plot3.legend()
+        plot2.legend()
+        plot1.legend()
+        return fig
+    
+    
 
 
 class pril_lift_block(lift_block):
@@ -196,6 +242,9 @@ class periodized_program():
         
         def __init__(self, lift_name:str, start_weight:float, end_weight:float, phases:int, frequency_per_week:int, weekly_periodization_per_phase:List[List[float]], percent_increase_arr:List[float], 
             gain_per_phase:List[float]=None, reset_percent:float=0.8, program_deload:bool=True, phase_week_limit:int=None) -> None:
+            
+            self.lift_name = str(lift_name)
+            
             if phases != len(gain_per_phase):
                 raise Exception("Number of phases does not match gain per phase")
             elif phases != len(weekly_periodization_per_phase):
@@ -290,43 +339,208 @@ class periodized_program():
             return lift_block_PDF(self)
 
 
-from reportlab.lib.styles import getSampleStyleSheet
-from reportlab.lib.validators import Auto
-from reportlab.graphics.charts.legends import Legend
-from reportlab.graphics.charts.piecharts import Pie
-from reportlab.graphics.shapes import Drawing, String
-from reportlab.platypus import SimpleDocTemplate, Paragraph
-from reportlab.graphics.charts.legends import Legend
-from reportlab.graphics.charts.piecharts import Pie
-from reportlab.pdfbase.pdfmetrics import stringWidth, EmbeddedType1Face, registerTypeFace, Font, registerFont
-from reportlab.graphics.shapes import Drawing, _DrawingEditorMixin
-from reportlab.lib.colors import Color, PCMYKColor, white
-from reportlab.platypus import PageBreak
-from reportlab.platypus import Spacer
-from reportlab.graphics.shapes import Drawing
-from reportlab.graphics.charts.piecharts import Pie
-from reportlab.lib.units import inch
-from reportlab.lib.styles import (ParagraphStyle, getSampleStyleSheet)
-from reportlab.lib.colors import purple, PCMYKColor, red, Color, CMYKColor, yellow
-from reportlab.graphics.charts.legends import Legend
-from reportlab.graphics.shapes import Drawing, _DrawingEditorMixin, String
-from reportlab.lib.validators import Auto
-from reportlab.pdfbase.pdfmetrics import stringWidth, EmbeddedType1Face, registerTypeFace, Font, registerFont
-from reportlab.graphics.charts.barcharts import VerticalBarChart
-from reportlab.graphics.charts.textlabels import Label
-from pprint import pprint
-from reportlab.platypus import SimpleDocTemplate, Image
-import random
+# from reportlab.lib.styles import getSampleStyleSheet
+# from reportlab.lib.validators import Auto
+# from reportlab.graphics.charts.legends import Legend
+# from reportlab.graphics.charts.piecharts import Pie
+# from reportlab.graphics.shapes import Drawing, String
+# from reportlab.platypus import SimpleDocTemplate, Paragraph
+# from reportlab.graphics.charts.legends import Legend
+# from reportlab.graphics.charts.piecharts import Pie
+# from reportlab.pdfbase.pdfmetrics import stringWidth, EmbeddedType1Face, registerTypeFace, Font, registerFont
+# from reportlab.graphics.shapes import Drawing, _DrawingEditorMixin
+# from reportlab.lib.colors import Color, PCMYKColor, white
+# from reportlab.platypus import PageBreak
+# from reportlab.platypus import Spacer
+# from reportlab.graphics.shapes import Drawing
+# from reportlab.graphics.charts.piecharts import Pie
+# from reportlab.lib.units import inch
+# from reportlab.lib.styles import (ParagraphStyle, getSampleStyleSheet)
+# from reportlab.lib.colors import purple, PCMYKColor, red, Color, CMYKColor, yellow
+# from reportlab.graphics.charts.legends import Legend
+# from reportlab.graphics.shapes import Drawing, _DrawingEditorMixin, String
+# from reportlab.lib.validators import Auto
+# from reportlab.pdfbase.pdfmetrics import stringWidth, EmbeddedType1Face, registerTypeFace, Font, registerFont
+# from reportlab.graphics.charts.barcharts import VerticalBarChart
+# from reportlab.graphics.charts.textlabels import Label
+# from pprint import pprint
+# from reportlab.platypus import SimpleDocTemplate, Image
+# import random
+# from reportlab.lib import utils
+
 from reportlab.lib import utils
+from reportlab.lib.styles import ParagraphStyle
+from reportlab.platypus import Paragraph, SimpleDocTemplate, flowables, Image
+import string
+import random
 
 class lift_block_PDF:
+
+    center_header_1 = ParagraphStyle('Header 1',
+                            fontName="Times",
+                            fontSize=26,
+                            leading = 20,
+                            alignment=1,
+                            spaceAfter=26)
+    
+    center_header_1_bold = ParagraphStyle('Header 1',
+                            fontName="Times-bold",
+                            fontSize=26,
+                            leading = 20,
+                            alignment=1,
+                            spaceAfter=26)
+
+    left_header_1 = ParagraphStyle('Header 1',
+                                fontName="Times",
+                                fontSize=14,
+                                alignment=0,
+                                spaceAfter=16)
+
+    left_header_2 = ParagraphStyle('Header 1',
+                                fontName="Times",
+                                fontSize=12,
+                                alignment=0,
+                                spaceAfter=16)
+
+    left_header_3 = ParagraphStyle('Header 1',
+                                fontName="Times",
+                                fontSize=17,
+                                alignment=0,
+                                spaceAfter=22)
+
+    normal = ParagraphStyle('Header 1',
+                                fontName="Times",
+                                fontSize=11,
+                                alignment=0,
+                                spaceAfter=6)
     
 
     def __init__(self, pril_program:periodized_program) -> None:
         self.pril_program = pril_program
 
-    def generate_PDF(self, filename:str):
-        doc = SimpleDocTemplate(filename+'.pdf')
+        self.phase_index = pril_program
+
+    def generate_PDF(self, filename:str,
+            #draw_graphs:bool,
+            #draw_RPE:bool,
+            seperate_phases:bool,
+            notes:str=None, #TODO: Might have to be defaulted to ""
+            #draw_warmup:bool,
+            #draw_cooldown:bool,
+            #fillable:bool,
+            #timestepped:bool
+        ):
+        elements = []
+        if seperate_phases:
+            for phase in self.pril_program.get_blocks():
+                pass
+
+        else:
+            doc = SimpleDocTemplate(filename+'.pdf')
+            index = 0
+
+            for phase in self.pril_program.get_blocks():
+
+                elements.append(self.generate_header(index, notes))
+                elements.append(self.generate_graph(phase))
+
+                index +=1
+            
+            doc.build(elements)
+
+
+
+
+    def get_combined_fig(self) -> Figure:
+        #since each block has no awareness of the other ones we need to create a new figure in here
+        fig = Figure(figsize = (10, 5), ##Size of 10,5 because we really only want combined graphs for a PDF
+                        dpi = 100)
+
+        x = []
+        actual_intensity_arr = []
+        weight_arr = []
+        volume_arr = []
+        i = 0
+
+        for block in self.pril_program.get_blocks():
+            for session in block.sessions:
+                x.append(i)
+                i+=1
+                actual_intensity_arr.append(session.get_actual_intensity())
+                weight_arr.append(session.get_weight())
+                volume_arr.append(session.get_volume())
+
+        plot1 = fig.add_subplot(311)
+
+        #plot1.plot(actual_intensity_arr)
+        plot1.plot(x, actual_intensity_arr, label = "Actual Intensity")
+        ##TODO: Force integer x axis
+        plot2 = fig.add_subplot(312)
+
+        plot2.plot(x, weight_arr, label = "Weight")
+
+        plot3 = fig.add_subplot(313)
+
+        plot3.plot(x, volume_arr, label = "Volume")
+
+        plot3.legend()
+        plot2.legend()
+        plot1.legend()
+        return fig
+
+    def generate_PNG(self, fig:Figure, path:str="/temp") -> str:
+        """Generates a PNG in /temp of the requested figure
+
+        Args:
+            fig (Figure): figure input of matplotlib
+
+        Returns:
+            str: file name within specified directory
+        """        
+        def get_random_filename():
+            return ''.join(random.choice(string.ascii_lowercase) for i in range(10))
+
+        this_filename = get_random_filename()
+        fig.savefig(path + this_filename + '.png')
+        return path + this_filename + ".png"
+
+    def get_png_as_flowble(self, path:str, width:int=350):
+        img = utils.ImageReader(path)
+        iw, ih = img.getSize()
+        aspect = ih / float(iw)
+        return Image(path, width=width, height=(width * aspect))
+
+
+    def generate_combined_graph(self) -> flowables:
+        combined_figure = self.get_combined_fig()
+        filepath = self.generate_PNG(combined_figure)
+        return self.get_png_as_flowble(filepath)
+        
+
+
+    def generate_graph(self, phase:lift_block) -> flowables:
+        #TODO: Global call to clear temporary files?
+        figure = phase.get_as_figure()
+        filepath = self.generate_PNG(figure)
+        return self.get_png_as_flowble(filepath)
+            
+
+    def generate_header(self, phase_number:int = None, notes:str = None) -> flowables:
+
+        if phase_number == None and notes == None:
+            return Paragraph(str(self.pril_program.lift_name))
+
+        if phase_number == None and notes != None:
+            return Paragraph(str(self.pril_program.lift_name) + " " + notes)
+
+        if phase_number != None and notes == None:
+            return Paragraph(str(self.pril_program.lift_name) + " " + str(phase_number))
+
+        if phase_number != None and notes != None:
+            # print(self.pril_program.lift_name)
+            return Paragraph(str(self.pril_program.lift_name) + " " + str(phase_number) + " " + notes, self.center_header_1_bold)
+            
+
 
 
 
@@ -448,7 +662,7 @@ class prilepin_chart:
         Lean of 0.2 is 20% more difficult of the delta between optimal reps and
         '''
         repset = {}
-        with open("RepSets_two.csv") as csvfile:
+        with open("data/RepSets_two.csv") as csvfile:
             reader = self.csv.reader(csvfile)
 
             firstRow = True
@@ -507,4 +721,4 @@ if __name__ == '__main__':
     )
 
     pril_pdf = pril_program.as_PDF()
-    pril_pdf.generate_PDF("a")
+    pril_pdf.generate_PDF("a.pdf", seperate_phases=False, notes="Hello")
