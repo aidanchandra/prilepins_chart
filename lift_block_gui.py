@@ -5,6 +5,9 @@ except ImportError:
 import sys
 from tkinter import *
 import tkinter
+import git 
+import os
+
 
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_tkagg import (FigureCanvasTkAgg, 
@@ -409,7 +412,16 @@ class lift_block_gui(tk.Frame):
 
             return returnable
 
+class auto_update():
 
+    REPO_LINK = "https://github.com/aidanchandra/prilepins_chart"
+
+    def __init__(self) -> None:
+        pass
+    
+    def update(self):
+        g = git.Git(self.REPO_LINK)
+        g.pull('origin','main')
 
 
 
@@ -429,4 +441,6 @@ def main():
     root.mainloop()
 
 if __name__ == '__main__':
-    main()
+    updater_agent = auto_update()
+    updater_agent.update()
+    ##main()

@@ -328,9 +328,6 @@ class lift_block_PDF:
     def generate_PDF(self, filename:str):
         doc = SimpleDocTemplate(filename+'.pdf')
 
-    
-
-
 
 
 def timer(letter,start):
