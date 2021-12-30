@@ -33,6 +33,10 @@ class lift_session:
             self.sets = []
         pass
 
+    def get_working_weight(self):
+        #TODO: Named this way to program in warmup sets later on
+        return self.get_weight()
+
     def get_actual_intensity(self):
         total = 0
         for set in self.sets:
@@ -51,6 +55,11 @@ class lift_session:
             total += set.reps
         return total
 
+    def get_session_week(self):
+        return self.session_week
+    
+    def get_session_date(self):
+        return self.session_weekly_number
 
     def set_session_number(self, session_number:int):
         self.session_number = session_number
@@ -120,6 +129,8 @@ class lift_block:
         for session in self.sessions:
             returnable += " " + session.session_string()
         return returnable
+
+
 
     def get_csv(self, output_name:str=None):
 
@@ -195,6 +206,35 @@ class pril_lift_block(lift_block):
     def phase_str(self) -> str:
         return "Phase " + str(self.phase_number) if not self.deload else "Deload Phase " + str(self.phase_number)
 
+    def get_phase_summary(self):
+        """Returns a string of the following statistics
+
+            Start and end weight
+            Total amount of sessions
+            Average jumps in intensity
+            Weekly per-session periodization
+        """        
+        #TODO: Reconcile the whole phase/block synonym thing
+        #TODO: Don't delete me you fuck
+        returnable = ""
+        returnable += "Starting at weight " + str(self.get_starting_weight())
+        returnable += " and ending at weight " + str(self.get_ending_weight())
+        returnable += " in " + str(len(self.sessions))
+        returnable += " over " + str(self.sessions[-1].session_week) + " weeks"
+        #TODO: returnable += '\n with jumps of ' + self.
+        return returnable
+
+    def get_starting_weight(self):
+        try:
+            return self.sessions[0].get_working_weight()
+        except IndexError:
+            raise Exception("Tried to request starting weight of a block with no sessions")
+    
+    def get_ending_weight(self):
+        try:
+            return self.sessions[-1].get_working_weight()
+        except IndexError:
+            raise Exception("Tried to request starting weight of a block with no sessions")
 
     def add_session(self, session):
         if self.weekly_frequency != None:
@@ -370,18 +410,20 @@ class periodized_program():
 
 from reportlab.lib import utils
 from reportlab.lib.styles import ParagraphStyle
-from reportlab.platypus import Paragraph, SimpleDocTemplate, flowables, Image
+from reportlab.platypus import Paragraph, SimpleDocTemplate, flowables, Image, PageBreak
 import string
 import random
+import datetime
+import os
 
 class lift_block_PDF:
 
     center_header_1 = ParagraphStyle('Header 1',
                             fontName="Times",
                             fontSize=26,
-                            leading = 20,
+                            leading = 0,
                             alignment=1,
-                            spaceAfter=26)
+                            spaceAfter=18)
     
     center_header_1_bold = ParagraphStyle('Header 1',
                             fontName="Times-bold",
@@ -389,6 +431,13 @@ class lift_block_PDF:
                             leading = 20,
                             alignment=1,
                             spaceAfter=26)
+
+    center_header_2 = ParagraphStyle('Header 1',
+                            fontName="Times",
+                            fontSize=22,
+                            leading = 20,
+                            alignment=1,
+                            spaceAfter=16)
 
     left_header_1 = ParagraphStyle('Header 1',
                                 fontName="Times",
@@ -408,6 +457,12 @@ class lift_block_PDF:
                                 alignment=0,
                                 spaceAfter=22)
 
+    left_header_4 = ParagraphStyle('Header 1',
+                                fontName="Times",
+                                fontSize=11,
+                                alignment=0,
+                                spaceAfter=22)
+
     normal = ParagraphStyle('Header 1',
                                 fontName="Times",
                                 fontSize=11,
@@ -421,15 +476,21 @@ class lift_block_PDF:
         self.phase_index = pril_program
 
     def generate_PDF(self, filename:str,
-            #draw_graphs:bool,
-            #draw_RPE:bool,
+            draw_graphs:bool,
             seperate_phases:bool,
-            notes:str=None, #TODO: Might have to be defaulted to ""
+            draw_summary:bool,
+            #draw_RPE:bool,
             #draw_warmup:bool,
             #draw_cooldown:bool,
             #fillable:bool,
-            #timestepped:bool
+            timestepped:bool,
+            forcetime:bool,
+            start_datetime:datetime.datetime=None,
+            notes:str=None, #TODO: Might have to be defaulted to ""
         ):
+        if forcetime and start_datetime == None:
+            raise Exception("Requested to force dates but provided no starting date")
+
         elements = []
         if seperate_phases:
             for phase in self.pril_program.get_blocks():
@@ -441,20 +502,64 @@ class lift_block_PDF:
 
             for phase in self.pril_program.get_blocks():
 
-                elements.append(self.generate_header(index, notes))
-                elements.append(self.generate_graph(phase))
+                self.addTo(elements, self.generate_header(phase, notes))
+                
+                if draw_graphs:
+                    self.addTo(elements,self.generate_graph(phase))
 
+                if draw_summary:
+                    self.addTo(elements, Paragraph(phase.get_phase_summary(), self.left_header_4))
+
+                for session in phase.sessions:
+                    self.addTo(elements, self.generate_session_header(session, timestepped, forcetime, start_datetime))
+
+                self.addTo(elements,PageBreak())
                 index +=1
             
             doc.build(elements)
+        
+        self.clear_temp_files()
+
+        
+
+    def clear_temp_files(self, path="temp/"):
+        for file in os.scandir(path):
+            os.remove(file.path)
+
+    def addTo(self, elements:list, object):
+        """Helper function to always add either a flowable or each flowable in a list to elements
+
+        Args:
+            elements (list): elements
+            object (either a flowable or a list of flowables): object
+        """        
+        try:
+            elements.extend(object)
+        except:
+            elements.append(object)
+
+    def generate_session_block(self, draw_RPE:bool, draw_warmup:bool, draw_cooldown:bool, fillable:bool):
+        pass
+        return None
 
 
+    def generate_session_header(self, session:lift_session, timestepped, forcetime, start_datetime):
 
+        #TODO: clean this shit up
+        if True or not forcetime:
+            if timestepped:
+                return Paragraph(str(session), self.left_header_3)
+            else:
+                return Paragraph("#" + str(session.session_number), self.left_header_3)
+        else:
+            session_week = session.get_session_week()
+            pass#TODO:
+            
 
     def get_combined_fig(self) -> Figure:
         #since each block has no awareness of the other ones we need to create a new figure in here
         fig = Figure(figsize = (10, 5), ##Size of 10,5 because we really only want combined graphs for a PDF
-                        dpi = 100)
+                        dpi = 500)
 
         x = []
         actual_intensity_arr = []
@@ -488,7 +593,7 @@ class lift_block_PDF:
         plot1.legend()
         return fig
 
-    def generate_PNG(self, fig:Figure, path:str="/temp") -> str:
+    def generate_PNG(self, fig:Figure, path:str="temp/") -> str:
         """Generates a PNG in /temp of the requested figure
 
         Args:
@@ -500,11 +605,12 @@ class lift_block_PDF:
         def get_random_filename():
             return ''.join(random.choice(string.ascii_lowercase) for i in range(10))
 
+        fig.set_size_inches(7, 3)
         this_filename = get_random_filename()
         fig.savefig(path + this_filename + '.png')
         return path + this_filename + ".png"
 
-    def get_png_as_flowble(self, path:str, width:int=350):
+    def get_png_as_flowble(self, path:str, width:int=500):
         img = utils.ImageReader(path)
         iw, ih = img.getSize()
         aspect = ih / float(iw)
@@ -519,26 +625,25 @@ class lift_block_PDF:
 
 
     def generate_graph(self, phase:lift_block) -> flowables:
-        #TODO: Global call to clear temporary files?
         figure = phase.get_as_figure()
         filepath = self.generate_PNG(figure)
         return self.get_png_as_flowble(filepath)
             
 
-    def generate_header(self, phase_number:int = None, notes:str = None) -> flowables:
+    def generate_header(self, phase:lift_block = None, notes:str = None) -> flowables:
 
-        if phase_number == None and notes == None:
-            return Paragraph(str(self.pril_program.lift_name))
+        if phase == None and notes == None:
+            return Paragraph(str(self.pril_program.lift_name.capitalize()))
 
-        if phase_number == None and notes != None:
-            return Paragraph(str(self.pril_program.lift_name) + " " + notes)
+        if phase == None and notes != None:
+            return Paragraph(str(self.pril_program.lift_name.capitalize()) + " " + notes)
 
-        if phase_number != None and notes == None:
-            return Paragraph(str(self.pril_program.lift_name) + " " + str(phase_number))
+        if phase != None and notes == None:
+            return [Paragraph(str(self.pril_program.lift_name.capitalize()) + " " + phase.phase_str(), self.center_header_1_bold)]
 
-        if phase_number != None and notes != None:
+        if phase != None and notes != None:
             # print(self.pril_program.lift_name)
-            return Paragraph(str(self.pril_program.lift_name) + " " + str(phase_number) + " " + notes, self.center_header_1_bold)
+            return [Paragraph(str(self.pril_program.lift_name.capitalize()) + " " + phase.phase_str(), self.center_header_1_bold), Paragraph(notes, self.center_header_2)]
             
 
 
@@ -721,4 +826,10 @@ if __name__ == '__main__':
     )
 
     pril_pdf = pril_program.as_PDF()
-    pril_pdf.generate_PDF("a.pdf", seperate_phases=False, notes="Hello")
+    pril_pdf.generate_PDF("a",
+         seperate_phases=False,
+        notes="Hello",
+        draw_summary=True,
+        draw_graphs = True,
+        timestepped = True,
+        forcetime = False)
