@@ -1,4 +1,4 @@
-from typing import List
+from typing import Iterable, List
 import csv
 import time
 import matplotlib
@@ -219,7 +219,7 @@ class pril_lift_block(lift_block):
         returnable = ""
         returnable += "Starting at weight " + str(self.get_starting_weight())
         returnable += " and ending at weight " + str(self.get_ending_weight())
-        returnable += " in " + str(len(self.sessions))
+        returnable += " in " + str(len(self.sessions)) + " sessions"
         returnable += " over " + str(self.sessions[-1].session_week) + " weeks"
         #TODO: returnable += '\n with jumps of ' + self.
         return returnable
@@ -408,14 +408,17 @@ class periodized_program():
 # import random
 # from reportlab.lib import utils
 
-from reportlab.lib import utils
+from reportlab.lib import utils, colors
+from reportlab.pdfbase import pdfform
+from reportlab.lib.units import inch, mm
 from reportlab.lib.styles import ParagraphStyle
-from reportlab.platypus import Paragraph, SimpleDocTemplate, flowables, Image, PageBreak
+from reportlab.platypus import Paragraph, SimpleDocTemplate, flowables, Image, PageBreak, Table, TableStyle, Flowable
 import string
 import random
 import datetime
 import os
 
+interactiveTextBoxNameIterator = 0 #This literally just incraments everytime we call InteraciveTextBox for unnamed fields ("") so they don't collide. this is terrible. #TODO: Please fix
 class lift_block_PDF:
 
     center_header_1 = ParagraphStyle('Header 1',
@@ -463,34 +466,83 @@ class lift_block_PDF:
                                 alignment=0,
                                 spaceAfter=22)
 
-    normal = ParagraphStyle('Header 1',
+    cell_body_1 = ParagraphStyle('Header 1',
                                 fontName="Times",
                                 fontSize=11,
                                 alignment=0,
                                 spaceAfter=6)
-    
+
+    class InteractiveTextbox(Flowable):
+        def __init__(self, name:str, width:int, tooltip:str="", height:int=13,
+        borderStyle:str='solid', relative=True, borderColor=colors.black, fillColor=colors.white):
+
+            Flowable.__init__(self)
+            global interactiveTextBoxNameIterator
+            if name == "":
+                self.name = str(interactiveTextBoxNameIterator)
+                interactiveTextBoxNameIterator +=1
+            else:
+                self.name = name
+
+            self.tooltip = tooltip
+            self.width = width
+            self.height = height
+            self.borderStyle = borderStyle
+            self.relative = relative
+            self.bordercolor = borderColor
+            self.fillColor = fillColor
+
+        def draw(self):
+            self.canv.saveState()
+            pdfform.textFieldRelative(self.canv, self.name, maxlen=1000, xR=0, yR=0, width=self.width, height=self.height, multiline=self.height >= 14)
+            self.canv.restoreState()
 
     def __init__(self, pril_program:periodized_program) -> None:
         self.pril_program = pril_program
 
         self.phase_index = pril_program
 
+    def get_height(self, elements):
+        #TODO: The wrap function edits the object it's sensing and therefore is the reason for needing the regenerate below
+        if isinstance(elements, Iterable):
+            total_height = 0
+            for flowable in elements:
+                w, h = flowable.wrap(0,0)
+                total_height += h
+            return total_height
+        else:
+            w, h = elements.wrap(0,0)
+            return h
+
     def generate_PDF(self, filename:str,
             draw_graphs:bool,
             seperate_phases:bool,
             draw_summary:bool,
-            #draw_RPE:bool,
-            #draw_warmup:bool,
-            #draw_cooldown:bool,
-            #fillable:bool,
+            draw_RPE:bool,
+            draw_recovery:bool,
+            draw_warmup:bool,
+            draw_cooldown:bool,
+            fillable:bool,
             timestepped:bool,
             forcetime:bool,
+            writable:bool,
+            draw_empty_sets:bool,
+            num_empty_sets_before:int=None,
+            num_empty_sets_after:int=None,
             start_datetime:datetime.datetime=None,
             notes:str=None, #TODO: Might have to be defaulted to ""
         ):
+
+        
+
         if forcetime and start_datetime == None:
             raise Exception("Requested to force dates but provided no starting date")
+        
+        if draw_empty_sets and (num_empty_sets_after == None or num_empty_sets_before == None):
+            raise Exception("Need to specify nubmer of sessions before and after since draw_empty_sets is set to True")
 
+        TOTAL_PAGE_HEIGHT = 570
+        current_height = 0 
         elements = []
         if seperate_phases:
             for phase in self.pril_program.get_blocks():
@@ -506,13 +558,37 @@ class lift_block_PDF:
                 
                 if draw_graphs:
                     self.addTo(elements,self.generate_graph(phase))
+                    current_height = TOTAL_PAGE_HEIGHT/2 ##Always assume the first top stuff will take up at most a half page
+                else:
+                    current_height = 10 ##Always assume the first top stuff will take up at most a half page
 
                 if draw_summary:
                     self.addTo(elements, Paragraph(phase.get_phase_summary(), self.left_header_4))
 
-                for session in phase.sessions:
-                    self.addTo(elements, self.generate_session_header(session, timestepped, forcetime, start_datetime))
 
+                for session in phase.sessions:
+                    session_header = self.generate_session_header(session, timestepped, forcetime, start_datetime) ##Single flowable
+                    table = self.generate_session_block(session, draw_RPE, draw_recovery, draw_warmup, draw_cooldown, fillable) ##List of a bunch of tables
+                    height_about_to_add = self.get_height( table)
+
+                    print("")
+                    print(str(session))
+                    print("Current height",current_height)
+                    print("About to add", height_about_to_add) #215 
+                    print("Would result in", (current_height+height_about_to_add))
+                    print("Total allowed height", TOTAL_PAGE_HEIGHT)
+                    if (current_height + height_about_to_add) > TOTAL_PAGE_HEIGHT:
+                        print("Pagebreak")
+                        elements.append(PageBreak())
+                        current_height = height_about_to_add ##Since we r on a new page
+                    else:
+                        current_height += height_about_to_add
+                    
+                    self.addTo(elements, session_header)
+                    self.addTo(elements, self.generate_session_block(session, 
+                        draw_RPE, draw_recovery, draw_warmup, draw_cooldown, 
+                        fillable, writable, draw_empty_sets, num_empty_sets_before, num_empty_sets_after)) ##This regenrates bc the widths get fucked up if I don't regenerate it... fuck this
+                
                 self.addTo(elements,PageBreak())
                 index +=1
             
@@ -526,27 +602,194 @@ class lift_block_PDF:
         for file in os.scandir(path):
             os.remove(file.path)
 
-    def addTo(self, elements:list, object):
+    def addTo(self, elements:list, object: flowables):
         """Helper function to always add either a flowable or each flowable in a list to elements
 
         Args:
             elements (list): elements
             object (either a flowable or a list of flowables): object
-        """        
+        """      
         try:
             elements.extend(object)
         except:
             elements.append(object)
 
-    def generate_session_block(self, draw_RPE:bool, draw_warmup:bool, draw_cooldown:bool, fillable:bool):
-        pass
-        return None
+    def generate_session_block(self, session:lift_session, draw_RPE:bool, draw_recovery: bool, draw_warmup:bool, draw_cooldown:bool, fillable:bool, 
+        writable:bool, draw_empty_sets:bool, num_empty_sets_before:int, num_empty_sets_after:int):
+
+        def cellText(data:str, height=None):
+            if height == None:
+                return Paragraph(data, self.cell_body_1)
+            else:
+                temp_style = ParagraphStyle('Header 1',
+                                fontName="Times",
+                                fontSize=11,
+                                alignment=0,
+                                spaceAfter=6,
+                                leading=height)
+                return Paragraph(data, temp_style)
 
 
-    def generate_session_header(self, session:lift_session, timestepped, forcetime, start_datetime):
+
+        tables = []
+
+        TOTAL_WIDTH = 400
+
+        #Top header
+        if fillable:
+            if writable:
+                data = [[
+                    [cellText("Session"), self.InteractiveTextbox("Session" + str(session.session_number), width=50)], 
+                    [cellText("Date"), self.InteractiveTextbox("Date" + str(session.session_number), width=50)],
+                    [cellText("Target"), self.InteractiveTextbox("Target" + str(session.session_number), width=50)],
+                    [cellText("Actual"), self.InteractiveTextbox("Actual" + str(session.session_number), width=50)],
+                    [cellText("Felt"), self.InteractiveTextbox("Felt" + str(session.session_number), width=50)],
+                    [cellText("Notes"), self.InteractiveTextbox("Notes" + str(session.session_number), width=50)]
+                ]]
+                table = Table(data, spaceAfter=1, spaceBefore=1)
+                table.setStyle(TableStyle([
+                    ('ALIGN',(0,0),(-1,-1),'LEFT'),
+                    ('GRID', (0,0), (-1,-1), 0.25, colors.black),
+                    ('BOX', (0,0), (-1,-1), 0.25, colors.black),
+                ]))
+                tables.append(table)
+            else:
+                #Height of 26 because it will always be double its desired height without the bottom one
+                #TODO: Make height a pretty variable?
+                data = [[
+                    [cellText("Session", height=26)], 
+                    [cellText("Date", height=26)],
+                    [cellText("Target", height=26)],
+                    [cellText("Actual", height=26)],
+                    [cellText("Felt", height=26)],
+                    [cellText("Notes", height=26)]
+                ]]
+                table = Table(data, spaceAfter=1, spaceBefore=1)
+                table.setStyle(TableStyle([
+                    ('ALIGN',(0,0),(-1,-1),'LEFT'),
+                    ('GRID', (0,0), (-1,-1), 0.25, colors.black),
+                    ('BOX', (0,0), (-1,-1), 0.25, colors.black),
+                ]))
+                tables.append(table)
+        
+        #Middle header
+        MIDDLE_HEIGHT = 60
+        if fillable:
+            total_columns = sum([int(draw_recovery), int(draw_cooldown), int(draw_warmup)])
+            if total_columns != 0:
+                each_width = TOTAL_WIDTH/total_columns
+            data = [[]]
+            if writable:
+                if draw_recovery:
+                    name = "Recovery Notes" #Becase I am EXCEPTIONALLY lazy
+                    data[0].append([cellText(name),self.InteractiveTextbox(name + str(session.session_number), width=each_width, height=MIDDLE_HEIGHT)])
+                if draw_warmup:
+                    name = "Warmup" #Becase I am EXCEPTIONALLY lazy
+                    data[0].append([cellText(name),self.InteractiveTextbox(name + str(session.session_number), width=each_width, height=MIDDLE_HEIGHT)])
+                if draw_cooldown:
+                    name = "Cooldown" #Becase I am EXCEPTIONALLY lazy
+                    data[0].append([cellText(name),self.InteractiveTextbox(name + str(session.session_number), width=each_width, height=MIDDLE_HEIGHT)])
+            else:
+                SCALE_FACTOR = 1.3 #Shouldn't need to change
+                if draw_recovery:
+                    data[0].append(cellText("Recovery Notes", height=int(SCALE_FACTOR*MIDDLE_HEIGHT)))
+                    #data[0].append(cellText("Recovery Notes" + ''.join(['\n' for i in range(0, int(MIDDLE_HEIGHT/13))])))
+                if draw_warmup:
+                    data[0].append(cellText("Warmup", height=int(SCALE_FACTOR*MIDDLE_HEIGHT)))
+                if draw_cooldown:
+                    data[0].append(cellText("Cooldown", height=int(SCALE_FACTOR*MIDDLE_HEIGHT)))
+            if total_columns != 0:
+                table = Table(data, spaceAfter=1, spaceBefore=1)
+                table.setStyle(TableStyle([
+                    ('ALIGN',(0,0),(-1,-1),'LEFT'),
+                    ('GRID', (0,0), (-1,-1), 0.25, colors.black),
+                    ('BOX', (0,0), (-1,-1), 0.25, colors.black),
+                ]))
+                tables.append(table)
+        
+        #Now for each actual set
+        if not fillable:
+            for set in session.sets:
+                tables.append(Paragraph(str(set) ,self.left_header_4))
+        else:
+            data = []
+            if draw_RPE:
+                data.append(["", "Assignment" , "Actual", "RPE", "Notes"])
+            else:
+                data.append(["", "Assignment" , "Actual", "Notes"])
+
+            #Empy sets before
+            if draw_empty_sets:
+                index = 0
+                for i in range(0, num_empty_sets_before):
+                    index +=1
+                    ##40 because -2
+                    if writable:
+                        if draw_RPE:
+                            data.append([cellText("0." + str(index)), self.InteractiveTextbox("", 40*mm), self.InteractiveTextbox("", 40*mm), self.InteractiveTextbox("", 9*mm),self.InteractiveTextbox("", 48*mm)])
+                        else:
+                            data.append([cellText("0." + str(index)), self.InteractiveTextbox("", 40*mm), self.InteractiveTextbox("", 40*mm), self.InteractiveTextbox("", 69*mm)])
+                    else:
+                        if draw_RPE:
+                            data.append([cellText("0." + str(index)), "", "", "",""])
+                        else:
+                            data.append([cellText("0." + str(index)), "", "", ""])
+                        
+
+            #Each assigned set
+            index = 0
+            for set in session.sets:
+                index +=1
+                internal_string = str(index) if not draw_empty_sets else "1." + str(index)
+                if writable:
+                    if draw_RPE:
+                        data.append([cellText(str(internal_string)), cellText(str(set)), self.InteractiveTextbox("", 40*mm), self.InteractiveTextbox("", 9*mm),self.InteractiveTextbox("", 48*mm)])
+                    else:
+                        data.append([cellText(str(internal_string)), cellText(str(set)), self.InteractiveTextbox("", 40*mm), self.InteractiveTextbox("", 69*mm)])
+                else:
+                    if draw_RPE:
+                        data.append([cellText(str(internal_string)), cellText(str(set)), "", "",""])
+                    else:
+                        data.append([cellText(str(internal_string)), cellText(str(set)), "", ""])
+
+            #Empty sets after
+            if draw_empty_sets:
+                index = 0
+                for i in range(0, num_empty_sets_after):
+                    index +=1
+                    if writable:
+                        if draw_RPE:
+                            data.append([cellText("2." + str(index)), self.InteractiveTextbox("", 40*mm), self.InteractiveTextbox("", 40*mm), self.InteractiveTextbox("", 9*mm),self.InteractiveTextbox("", 48*mm)])
+                        else:
+                            data.append([cellText("2." + str(index)), self.InteractiveTextbox("", 40*mm), self.InteractiveTextbox("", 40*mm), self.InteractiveTextbox("", 69*mm)])
+                    else:
+                        if draw_RPE:
+                            data.append([cellText("2." + str(index)), "", "", "",""])
+                        else:
+                            data.append([cellText("2." + str(index)), "", "", ""])
+            
+            if draw_RPE:
+                table = Table(data, colWidths=[10*mm, 42*mm, 42*mm, 11*mm, 50*mm])
+            else:
+                table = Table(data, colWidths=[10*mm, 42*mm, 42*mm, 61*mm])
+            
+            table.setStyle(TableStyle([
+                ('ALIGN',(0,0),(-1,-1),'LEFT'),
+                ('GRID', (0,0), (-1,-1), 0.25, colors.black),
+                ('BOX', (0,0), (-1,-1), 0.25, colors.black),
+            ]))
+            tables.append(table)
+            
+        return tables
+            
+
+
+    def generate_session_header(self, session:lift_session, timestepped, forcetime, start_datetime) -> flowables:
 
         #TODO: clean this shit up
-        if True or not forcetime:
+
+        #If we DO NOT want to add forcetime stuff
+        if not forcetime:
             if timestepped:
                 return Paragraph(str(session), self.left_header_3)
             else:
@@ -579,7 +822,7 @@ class lift_block_PDF:
 
         #plot1.plot(actual_intensity_arr)
         plot1.plot(x, actual_intensity_arr, label = "Actual Intensity")
-        ##TODO: Force integer x axis
+        ##TODO: Force integer to appear on x axis
         plot2 = fig.add_subplot(312)
 
         plot2.plot(x, weight_arr, label = "Weight")
@@ -829,7 +1072,16 @@ if __name__ == '__main__':
     pril_pdf.generate_PDF("a",
          seperate_phases=False,
         notes="Hello",
+        draw_RPE=True,
+        draw_warmup=True,
+        draw_cooldown=True,
+        fillable=True,
+        draw_recovery=True,
         draw_summary=True,
         draw_graphs = True,
         timestepped = True,
-        forcetime = False)
+        forcetime = False,
+        writable=False,
+        draw_empty_sets=False,
+        num_empty_sets_before=3,
+        num_empty_sets_after=3)
