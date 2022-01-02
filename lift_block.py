@@ -541,10 +541,12 @@ class lift_block_PDF:
         if draw_empty_sets and (num_empty_sets_after == None or num_empty_sets_before == None):
             raise Exception("Need to specify nubmer of sessions before and after since draw_empty_sets is set to True")
 
-        TOTAL_PAGE_HEIGHT = 570
+        #height is 215 when we have fillable and 310 when is not fillable (BRUH)
+        TOTAL_PAGE_HEIGHT = 570 if writable else 830 #I hate this so much
         current_height = 0 
         elements = []
         if seperate_phases:
+            #TODO: This should be easy
             for phase in self.pril_program.get_blocks():
                 pass
 
@@ -568,7 +570,9 @@ class lift_block_PDF:
 
                 for session in phase.sessions:
                     session_header = self.generate_session_header(session, timestepped, forcetime, start_datetime) ##Single flowable
-                    table = self.generate_session_block(session, draw_RPE, draw_recovery, draw_warmup, draw_cooldown, fillable) ##List of a bunch of tables
+                    table = self.generate_session_block(session, 
+                        draw_RPE, draw_recovery, draw_warmup, draw_cooldown, 
+                        fillable, writable, draw_empty_sets, num_empty_sets_before, num_empty_sets_after) ##List of a bunch of tables
                     height_about_to_add = self.get_height( table)
 
                     print("")
@@ -1058,20 +1062,20 @@ if __name__ == '__main__':
 
     pril_program = periodized_program(
         lift_name="deadlift",
-        start_weight=195,
-        end_weight=225,
-        phases=1,
-        percent_increase_arr=[3.5],
+        start_weight=265,
+        end_weight=315,
+        phases=3,
+        percent_increase_arr=[3.5, 2, 1],
         frequency_per_week=3,
-        gain_per_phase=[30],
-        #weekly_periodization_per_phase=[[0.0, 1.5, -0.5],[0.0, 1.5, -0.5],[0.0, 1.5, -0.5]],
-        weekly_periodization_per_phase=[[0.0, 0.25, -0.5]],
+        gain_per_phase=[25, 15, 10],
+        weekly_periodization_per_phase=[[0.0, 1.5, -0.5],[0.0, 1.5, -0.5],[0.0, 1.5, -0.5]],
+        #weekly_periodization_per_phase=[[0.0, 0.25, -0.5]],
     )
 
     pril_pdf = pril_program.as_PDF()
     pril_pdf.generate_PDF("a",
          seperate_phases=False,
-        notes="Hello",
+        notes="Aidan",
         draw_RPE=True,
         draw_warmup=True,
         draw_cooldown=True,
@@ -1082,6 +1086,6 @@ if __name__ == '__main__':
         timestepped = True,
         forcetime = False,
         writable=False,
-        draw_empty_sets=False,
+        draw_empty_sets=True,
         num_empty_sets_before=3,
-        num_empty_sets_after=3)
+        num_empty_sets_after=2)

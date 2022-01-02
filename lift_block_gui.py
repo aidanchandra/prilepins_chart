@@ -107,6 +107,26 @@ class lift_block_gui(tk.Frame):
         self.all_set_bool_var = BooleanVar()
         self.csv_write_all_sets = Checkbutton(text="Row per set", variable=self.all_set_bool_var)
         self.csv_write_all_sets.grid(row=7, column=15)
+
+        #Generate PDF buttons
+        '''
+            pril_pdf.generate_PDF("a",      Filename w/o PDF
+            seperate_phases=False,          Each phase in a seperate PDF #TODO:
+            notes="Hello",                  Notes for the phase - not required
+            draw_RPE=True,                  Draw RPE y/n - required, no default, should assign here deafult to True
+            draw_warmup=True,               Draw warmup - required, no default, should assign here default to True
+            draw_cooldown=True,             Draw cooldown - required, no default, should assign here default to True
+            fillable=True,                  Y: nice fillable table, F: simply just list the assigned sets
+            draw_recovery=True,             Draw recovery - required, no default, should assign here default to True
+            draw_summary=True,              Draw summary at the top - required, no default, should assign here default to True
+            draw_graphs = True,             Draw graphs at the top - required, no default, should assign here default to True
+            timestepped = True,             Draw weeks or only session numbers - required, no default, should assign here to default to True
+            forcetime = False,              #TODO: Not yet implemented
+            writable=False,                 Insert textboxes - required, no default, should assign to FALSE
+            draw_empty_sets=False,          Draw empty before/after 'buffer' sets, no default, should assign to TRUE
+            num_empty_sets_before=3,        Draw n empty sets before, should assign to 2        STATE DEPENDENT ON draw_empty_sets
+            num_empty_sets_after=3)         Draw n empty sets AFTER, should assign to 2         STATE DEPENDENT ON draw_empty_sets
+        '''
         
         ##Foprce self update of graph
         self.update_graph()
