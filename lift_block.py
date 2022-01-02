@@ -531,6 +531,7 @@ class lift_block_PDF:
             num_empty_sets_after:int=None,
             start_datetime:datetime.datetime=None,
             notes:str=None, #TODO: Might have to be defaulted to ""
+            debug = False
         ):
 
         
@@ -542,7 +543,7 @@ class lift_block_PDF:
             raise Exception("Need to specify nubmer of sessions before and after since draw_empty_sets is set to True")
 
         #height is 215 when we have fillable and 310 when is not fillable (BRUH)
-        TOTAL_PAGE_HEIGHT = 570 if writable else 830 #I hate this so much
+        TOTAL_PAGE_HEIGHT = 582 if writable else 830 #I hate this so much
         current_height = 0 
         elements = []
         if seperate_phases:
@@ -574,15 +575,16 @@ class lift_block_PDF:
                         draw_RPE, draw_recovery, draw_warmup, draw_cooldown, 
                         fillable, writable, draw_empty_sets, num_empty_sets_before, num_empty_sets_after) ##List of a bunch of tables
                     height_about_to_add = self.get_height( table)
-
-                    print("")
-                    print(str(session))
-                    print("Current height",current_height)
-                    print("About to add", height_about_to_add) #215 
-                    print("Would result in", (current_height+height_about_to_add))
-                    print("Total allowed height", TOTAL_PAGE_HEIGHT)
+                    if debug:
+                        print("")
+                        print(str(session))
+                        print("Current height",current_height)
+                        print("About to add", height_about_to_add) #215 
+                        print("Would result in", (current_height+height_about_to_add))
+                        print("Total allowed height", TOTAL_PAGE_HEIGHT)
                     if (current_height + height_about_to_add) > TOTAL_PAGE_HEIGHT:
-                        print("Pagebreak")
+                        if debug:
+                            print("Pagebreak")
                         elements.append(PageBreak())
                         current_height = height_about_to_add ##Since we r on a new page
                     else:
@@ -1085,7 +1087,7 @@ if __name__ == '__main__':
         draw_graphs = True,
         timestepped = True,
         forcetime = False,
-        writable=False,
+        writable=True,
         draw_empty_sets=True,
-        num_empty_sets_before=3,
+        num_empty_sets_before=2,
         num_empty_sets_after=2)

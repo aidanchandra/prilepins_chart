@@ -7,6 +7,7 @@ from tkinter import *
 import tkinter
 import git 
 import os
+from git import exc
 
 
 from matplotlib.figure import Figure
@@ -14,7 +15,7 @@ from matplotlib.backends.backend_tkagg import (FigureCanvasTkAgg,
 NavigationToolbar2Tk)
 from matplotlib.pyplot import plot, streamplot, text
 from lift_block import periodized_program, pril_lift_block
-from random import randint
+from random import randint, triangular
 from matplotlib.ticker import MaxNLocator
 
 from tkinter import ttk
@@ -110,28 +111,162 @@ class lift_block_gui(tk.Frame):
 
         #Generate PDF buttons
         '''
-            pril_pdf.generate_PDF("a",      Filename w/o PDF
-            seperate_phases=False,          Each phase in a seperate PDF #TODO:
-            notes="Hello",                  Notes for the phase - not required
-            draw_RPE=True,                  Draw RPE y/n - required, no default, should assign here deafult to True
-            draw_warmup=True,               Draw warmup - required, no default, should assign here default to True
-            draw_cooldown=True,             Draw cooldown - required, no default, should assign here default to True
-            fillable=True,                  Y: nice fillable table, F: simply just list the assigned sets
-            draw_recovery=True,             Draw recovery - required, no default, should assign here default to True
-            draw_summary=True,              Draw summary at the top - required, no default, should assign here default to True
-            draw_graphs = True,             Draw graphs at the top - required, no default, should assign here default to True
-            timestepped = True,             Draw weeks or only session numbers - required, no default, should assign here to default to True
-            forcetime = False,              #TODO: Not yet implemented
-            writable=False,                 Insert textboxes - required, no default, should assign to FALSE
-            draw_empty_sets=False,          Draw empty before/after 'buffer' sets, no default, should assign to TRUE
+           X pril_pdf.generate_PDF("a",      Filename w/o PDF
+           X seperate_phases=False,          Each phase in a seperate PDF #TODO:
+            notes="Hello",                  Notes for the phase - not required #TODO:
+           X draw_RPE=True,                  Draw RPE y/n - required, no default, should assign here deafult to True
+           X draw_warmup=True,               Draw warmup - required, no default, should assign here default to True
+           X draw_cooldown=True,             Draw cooldown - required, no default, should assign here default to True
+           X fillable=True,                  Y: nice fillable table, F: simply just list the assigned sets
+           X draw_recovery=True,             Draw recovery - required, no default, should assign here default to True
+           X draw_summary=True,              Draw summary at the top - required, no default, should assign here default to True
+           X draw_graphs = True,             Draw graphs at the top - required, no default, should assign here default to True
+           X timestepped = True,             Draw weeks or only session numbers - required, no default, should assign here to default to True
+           X forcetime = False,              #TODO: Not yet implemented
+           X writable=False,                 Insert textboxes - required, no default, should assign to FALSE
+           X draw_empty_sets=False,          Draw empty before/after 'buffer' sets, no default, should assign to TRUE
             num_empty_sets_before=3,        Draw n empty sets before, should assign to 2        STATE DEPENDENT ON draw_empty_sets
             num_empty_sets_after=3)         Draw n empty sets AFTER, should assign to 2         STATE DEPENDENT ON draw_empty_sets
         '''
-        
+
+        self.pdf_generate_button = Button(text="Write PDF", command=self.generate_PDF)
+        self.pdf_generate_button.grid(row=8, column=13)
+
+        self.pdf_output_name = Entry()
+        self.pdf_output_name.insert(0,"filename")
+        self.pdf_output_name.grid(row=8, column=14)
+
+        self.drawSeperateBool = BooleanVar()
+        self.drawSeperate_checkbox = Checkbutton(text="Separate Phases", variable=self.drawSeperateBool)
+        self.drawSeperate_checkbox.grid(row=8, column=15)
+        self.drawSeperate_checkbox.config(state=DISABLED)
+
+        self.drawRPEBool = BooleanVar()
+        self.drawRPE_checkbox = Checkbutton(text="Draw RPE", variable=self.drawRPEBool)
+        self.drawRPE_checkbox.grid(row=9, column=13)
+
+        self.drawWarmupBool = BooleanVar()
+        self.drawWarmup_checkbox = Checkbutton(text="Draw Warmup", variable=self.drawWarmupBool)
+        self.drawWarmup_checkbox.grid(row=9, column=13)
+
+        self.drawCooldownBool = BooleanVar()
+        self.drawCooldown_checkbox = Checkbutton(text="Draw Cooldown", variable=self.drawCooldownBool)
+        self.drawCooldown_checkbox.grid(row=9, column=14)
+
+        self.drawRecoveryBool = BooleanVar()
+        self.drawRecovery_checkbox = Checkbutton(text="Draw Recovery", variable=self.drawRecoveryBool)
+        self.drawRecovery_checkbox.grid(row=9, column=15)
+
+        self.fillableBool = BooleanVar()
+        self.fillable_checkbox = Checkbutton(text="Fillable", variable=self.fillableBool)
+        self.fillable_checkbox.grid(row=10, column=13)
+
+        self.summaryBool = BooleanVar()
+        self.summary_checkbox = Checkbutton(text="Draw Summary", variable=self.summaryBool)
+        self.summary_checkbox.grid(row=10, column=14)
+
+        self.graphsBool = BooleanVar()
+        self.graphs_checkbox = Checkbutton(text="Draw Graphs", variable=self.graphsBool)
+        self.graphs_checkbox.grid(row=10, column=15)
+
+        self.timesteppedBool = BooleanVar()
+        self.timestepped_checkbox = Checkbutton(text="Timestepped", variable=self.timesteppedBool)
+        self.timestepped_checkbox.grid(row=11, column=13)
+
+        self.forcetimeBool = BooleanVar()
+        self.forcetime_checkbox = Checkbutton(text="Forcetime", variable=self.forcetimeBool)
+        self.forcetime_checkbox.grid(row=11, column=14)
+        self.forcetime_checkbox.config(state=DISABLED)
+
+        self.writableBool = BooleanVar()
+        self.writable_checkbox = Checkbutton(text="Writable", variable=self.writableBool)
+        self.writable_checkbox.grid(row=11, column=15)
+
+        Label(text="# Before").grid(row=12, column=14)
+        Label(text="# After").grid(row=12, column=15)
+
+
+
+        self.emptySetsBool = BooleanVar()
+        self.emptySets_checkbox = Checkbutton(text="Draw Empty Sets", variable=self.emptySetsBool, command=self.update_emptysets)
+        self.emptySets_checkbox.grid(row=13, column=13)
+
+        options = [str(i) for i in range(1, 9)]
+
+        self.sets_after_str = StringVar()
+        self.sets_after_str.set("1")
+        self.after_dropdown = OptionMenu(self.master ,self.sets_after_str ,*options)
+        self.after_dropdown.grid(row=13, column=14)
+
+
+        self.sets_before_str = StringVar()
+        self.sets_before_str.set("1")
+        self.before_dropdown = OptionMenu(self.master, self.sets_before_str ,*options)
+        self.before_dropdown.grid(row=13, column=15)
+
+        self.update_button = tk.Button(master, text="Update", command=self.update)
+        self.update_button.grid(row=11, column = 0)
+
+        #Defaults for all that
+        self.drawSeperateBool.set(False)
+        self.drawRPEBool.set(True)
+        self.drawWarmupBool.set(True)
+        self.drawCooldownBool.set(True)
+        self.drawRecoveryBool.set(True)
+        self.fillableBool.set(True)
+        self.summaryBool.set(True)
+        self.graphsBool.set(True)
+        self.timesteppedBool.set(True)
+        self.forcetimeBool.set(False)
+        self.writableBool.set(False)
+        self.emptySetsBool.set(True)
+
         ##Foprce self update of graph
         self.update_graph()
+        self.update_emptysets()
 
+    def update(self):
+        updater_agent = auto_update()
+        try:
+            updater_agent.update()
+            self.popup("Success! Please restart the program")
+        except Exception as e:
+            self.popup("Error in updating " + str(e))
+
+    def generate_PDF(self):
+        try:
+            pril_pdf = self.pril_program.as_PDF()
+        except AttributeError:
+            self.popup("Pleasae generate a program first")
+            return
+        pril_pdf.generate_PDF(self.pdf_output_name.get(),
+            seperate_phases=self.drawSeperateBool.get(),
+            notes=None, #TODO:
+            draw_RPE=self.drawRPEBool.get(),
+            draw_warmup=self.drawWarmupBool.get(),
+            draw_cooldown=self.drawCooldownBool.get(),
+            fillable=self.fillableBool.get(),
+            draw_recovery=self.drawRecoveryBool.get(),
+            draw_summary=self.summaryBool.get(),
+            draw_graphs = self.graphsBool.get(),
+            timestepped = self.timesteppedBool.get(),
+            forcetime = self.forcetimeBool.get(),
+            writable=self.writableBool.get(),
+            draw_empty_sets=self.emptySetsBool.get(),
+            num_empty_sets_before=int(self.sets_before_str.get()),
+            num_empty_sets_after=int(self.sets_after_str.get()))
+        self.popup("PDF generated!")
         
+
+    def update_emptysets(self):
+        if self.emptySetsBool.get() == False:
+            self.before_dropdown.config(state=DISABLED)
+            self.after_dropdown.config(state=DISABLED)
+        else:
+            self.before_dropdown.config(state=NORMAL)
+            self.after_dropdown.config(state=NORMAL)
+
+            
 
     def debug(self):
         self.lift_name_entry.insert(0,"Deadlift")
