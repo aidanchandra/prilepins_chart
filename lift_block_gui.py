@@ -206,6 +206,7 @@ class lift_block_gui(tk.Frame):
 
         self.update_button = tk.Button(master, text="Update", command=self.update)
         self.update_button.grid(row=11, column = 0)
+        self.update_button.config(state=DISABLED)
 
         #Defaults for all that
         self.drawSeperateBool.set(False)
