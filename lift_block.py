@@ -10,6 +10,8 @@ from matplotlib.pyplot import plot, streamplot, text
 from random import randint
 from matplotlib.ticker import MaxNLocator
 
+import utility
+
 class lift_set:
     def __init__(self, weight:float, reps:int, percent_onerm:float, actual_intensity:float) -> None:
         self.weight = weight
@@ -142,8 +144,8 @@ class lift_block:
             rows.append(row)
 
         filename = str(self.lift_name) + ".csv" if output_name == None else output_name
-            
-        with open(filename, 'w') as csvfile: 
+        
+        with open(os.path.join(os.getcwd(), filename), 'w') as csvfile: #jk
             csvwriter = csv.writer(csvfile) 
             csvwriter.writerows(rows)
     
@@ -370,7 +372,7 @@ class periodized_program():
                                 rows.append([block_cell, session_cell, session.reps_as_string()])
 
             
-            with open(filename, 'w') as csvfile:
+            with open(os.path.join(os.getcwd(), filename), 'w') as csvfile: #jk
                 csvwriter = csv.writer(csvfile)
                 csvwriter.writerow(headers)
                 csvwriter.writerows(rows)
@@ -552,7 +554,7 @@ class lift_block_PDF:
                 pass
 
         else:
-            doc = SimpleDocTemplate(filename+'.pdf')
+            doc = SimpleDocTemplate(os.path.join(os.getcwd(), filename+'.pdf')) #jk
             index = 0
 
             for phase in self.pril_program.get_blocks():
@@ -842,7 +844,7 @@ class lift_block_PDF:
         plot1.legend()
         return fig
 
-    def generate_PNG(self, fig:Figure, path:str="temp/") -> str:
+    def generate_PNG(self, fig:Figure, path:str="temp") -> str:
         """Generates a PNG in /temp of the requested figure
 
         Args:
@@ -856,8 +858,8 @@ class lift_block_PDF:
 
         fig.set_size_inches(7, 3)
         this_filename = get_random_filename()
-        fig.savefig(path + this_filename + '.png')
-        return path + this_filename + ".png"
+        fig.savefig(os.path.join(os.getcwd(), path, this_filename+'.png')) #jk
+        return os.path.join(os.getcwd(), path, this_filename+'.png')
 
     def get_png_as_flowble(self, path:str, width:int=500):
         img = utils.ImageReader(path)
@@ -963,15 +965,19 @@ class prilepin_chart:
     def get_charts(self):
         """Gets the necessary charts from CSVs
         """    
+
+        #Reading files we can use resource_path because these resources are packaged by pyinstaller
+        REPSETS_DIR = utility.resource_path("data/RepsSets.csv")
+        PRIL_DIR = utility.resource_path("data/Pril.csv")
         
         repsets = []
-        with open("data/RepsSets.csv") as csvfile:
+        with open(REPSETS_DIR) as csvfile:
             reader = self.csv.reader(csvfile) 
             for row in reader: 
                 repsets.append(row)
 
         prils = []
-        with open("data/Pril.csv") as csvfile:
+        with open(PRIL_DIR) as csvfile:
             reader = self.csv.reader(csvfile) 
             for row in reader:
                 prils.append(row)
@@ -1011,12 +1017,14 @@ class prilepin_chart:
         return session
 
     def get_rep_sets(self, onerm, reps_per_set_lean_percent, total_reps_lean_percent, lean):
+        REPSETS_TWO_DIR = utility.resource_path("data/RepSets_two.csv")
+
         '''
         Lean of 0 is optimal
         Lean of 0.2 is 20% more difficult of the delta between optimal reps and
         '''
         repset = {}
-        with open("data/RepSets_two.csv") as csvfile:
+        with open(REPSETS_TWO_DIR) as csvfile:
             reader = self.csv.reader(csvfile)
 
             firstRow = True

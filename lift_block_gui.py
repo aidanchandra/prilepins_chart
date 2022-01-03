@@ -9,7 +9,6 @@ import git
 import os
 from git import exc
 
-
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_tkagg import (FigureCanvasTkAgg, 
 NavigationToolbar2Tk)
@@ -365,38 +364,41 @@ class lift_block_gui(tk.Frame):
 
 
     def calculate(self):
-        #TODO: Update all phases with the calculated blocks
-        if self.all_data_provided() == True:
+        try:
+            #TODO: Update all phases with the calculated blocks
+            if self.all_data_provided() == True:
 
-            phase = self.phases[0]
+                phase = self.phases[0]
 
-            print(phase.get_weight_gain())
-            print(phase.get_increase())
-            print(phase.get_periodization())
+                print(phase.get_weight_gain())
+                print(phase.get_increase())
+                print(phase.get_periodization())
 
 
-            self.pril_program = periodized_program(
-            lift_name=self.lift_name_entry.get(),
-            start_weight=float(self.lift_start_entry.get()),
-            end_weight=float(self.lift_end_entry.get()),
-            phases=self.desired_phases.get(),
-            frequency_per_week=self.desired_frequency.get(),
+                self.pril_program = periodized_program(
+                lift_name=self.lift_name_entry.get(),
+                start_weight=float(self.lift_start_entry.get()),
+                end_weight=float(self.lift_end_entry.get()),
+                phases=self.desired_phases.get(),
+                frequency_per_week=self.desired_frequency.get(),
 
-            percent_increase_arr=[self.phases[i].get_increase() for i in range(0,self.desired_phases.get())],
-            gain_per_phase=[ self.phases[i].get_weight_gain() for i in range(0,self.desired_phases.get()) ],
-            weekly_periodization_per_phase=[self.phases[i].get_periodization() for i in range(0,self.desired_phases.get())],
-            )
+                percent_increase_arr=[self.phases[i].get_increase() for i in range(0,self.desired_phases.get())],
+                gain_per_phase=[ self.phases[i].get_weight_gain() for i in range(0,self.desired_phases.get()) ],
+                weekly_periodization_per_phase=[self.phases[i].get_periodization() for i in range(0,self.desired_phases.get())],
+                )
 
-            blocks = self.pril_program.get_blocks()
-            for block in blocks:
-                print(block)
-            self.calculated_blocks = blocks
-            self.update_graph()
-            self.update_tree()
-                
+                blocks = self.pril_program.get_blocks()
+                for block in blocks:
+                    print(block)
+                self.calculated_blocks = blocks
+                self.update_graph()
+                self.update_tree()
+                    
 
-        else:
-            self.popup(self.all_data_provided())
+            else:
+                self.popup(self.all_data_provided())
+        except Exception as e:
+            self.popup(str(e))
     
     
     def update_tree(self):
