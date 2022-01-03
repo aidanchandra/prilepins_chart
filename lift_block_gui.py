@@ -5,9 +5,7 @@ except ImportError:
 import sys
 from tkinter import *
 import tkinter
-import git 
 import os
-from git import exc
 
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_tkagg import (FigureCanvasTkAgg, 
@@ -226,12 +224,7 @@ class lift_block_gui(tk.Frame):
         self.update_emptysets()
 
     def update(self):
-        updater_agent = auto_update()
-        try:
-            updater_agent.update()
-            self.popup("Success! Please restart the program")
-        except Exception as e:
-            self.popup("Error in updating " + str(e))
+        pass
 
     def generate_PDF(self):
         try:
@@ -402,6 +395,8 @@ class lift_block_gui(tk.Frame):
     
     
     def update_tree(self):
+        for item in self.output_tree.get_children():
+            self.output_tree.delete(item)
     
         for block in self.pril_program.get_blocks():
             self.output_tree.insert("", index="end",iid=block.phase_str(), text=block.phase_str())
@@ -547,18 +542,6 @@ class lift_block_gui(tk.Frame):
                     returnable.append(float(element.get()))
 
             return returnable
-
-class auto_update():
-
-    REPO_LINK = "https://github.com/aidanchandra/prilepins_chart"
-
-    #Hello world!
-    def __init__(self) -> None:
-        pass
-    
-    def update(self):
-        g = git.Git(self.REPO_LINK)
-        g.pull('origin','main')
 
 
 

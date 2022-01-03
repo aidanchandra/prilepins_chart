@@ -4,6 +4,7 @@ deprecated_files
 *.csv
 temp/*
 .vscode/
+.DS_Store
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
