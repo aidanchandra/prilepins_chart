@@ -1,9 +1,11 @@
 # Custom
-/deprecated_files
+deprecated_files
 *.pdf
 *.csv
-/temp/*
-/.vscode
+temp/*
+.vscode/
+dist/*.pdf
+dist/*.csv
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
