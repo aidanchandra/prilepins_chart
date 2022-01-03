@@ -1,6 +1,19 @@
 #Set of global utilities
 import sys
+import platform
 import os
+
+def get_OS():
+    my_os = platform.system()
+    my_os = str(my_os)
+    if my_os == "Linux":
+        return "Linux"
+    elif my_os == "Windows":
+        return "Windows"
+    elif my_os == "Darwin":
+        return "MacOS"
+    else:
+        return "Unknown OS"
 
 def get_path():
     if getattr(sys, 'frozen', True): ##BEING RAN FROM PYINSTALLER
@@ -39,4 +52,4 @@ def get_correct_path(relative_path):
     return os.path.join(base_path, relative_path)
 
 if __name__ == "__main__":
-    print(get_current_path())
+    print(get_OS())
