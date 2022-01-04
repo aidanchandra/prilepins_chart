@@ -264,7 +264,7 @@ class lift_block_gui(tk.Frame):
             self.after_dropdown.config(state=NORMAL)
 
     def save_pdf(self):
-        f = filedialog.asksaveasfile(initialfile = 'Untitled.txt', initialdir = "~/Desktop", 
+        f = filedialog.asksaveasfile(initialfile = 'Untitled.pdf', initialdir = "~/Desktop", 
         defaultextension=".pdf",filetypes=[("PDFs","*.pdf")])
         self.pdf_file_destination.set(str(f.name))
 
