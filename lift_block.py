@@ -357,7 +357,7 @@ class periodized_program():
         def get_blocks(self):
             return self.blocks
 
-        def as_csv(self, filename:str, seperate_sets:bool = False):
+        def as_csv(self, full_path:str, seperate_sets:bool = False):
             headers = ["Block", "Session", "Set"]
             rows = []
             for block in self.blocks:
@@ -372,11 +372,12 @@ class periodized_program():
                                 rows.append([block_cell, session_cell, session.reps_as_string()])
 
             
-            with open(os.path.join(os.getcwd(), filename), 'w') as csvfile: #jk
+            with open(full_path, 'w') as csvfile: #jk
                 csvwriter = csv.writer(csvfile)
                 csvwriter.writerow(headers)
                 csvwriter.writerows(rows)
         
+            print("Wrote CSV to " + full_path)
         def as_PDF(self):
             return lift_block_PDF(self)
 
@@ -516,7 +517,7 @@ class lift_block_PDF:
             w, h = elements.wrap(0,0)
             return h
 
-    def generate_PDF(self, filename:str,
+    def generate_PDF(self, file_path:str,
             draw_graphs:bool,
             seperate_phases:bool,
             draw_summary:bool,
@@ -554,7 +555,7 @@ class lift_block_PDF:
                 pass
 
         else:
-            doc = SimpleDocTemplate(os.path.join(os.getcwd(), filename+'.pdf')) #jk
+            doc = SimpleDocTemplate(file_path) #jk
             index = 0
 
             for phase in self.pril_program.get_blocks():
@@ -601,6 +602,7 @@ class lift_block_PDF:
                 index +=1
             
             doc.build(elements)
+            print("Wrote PDF to " + str(file_path))
         
         self.clear_temp_files()
 

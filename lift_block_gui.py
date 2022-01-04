@@ -6,6 +6,7 @@ import sys
 from tkinter import *
 import tkinter
 import os
+from tkinter import filedialog
 
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_tkagg import (FigureCanvasTkAgg, 
@@ -96,11 +97,13 @@ class lift_block_gui(tk.Frame):
         self.output_tree.column("", width=300, anchor=tk.CENTER)
 
         #Write to CSV buttons
-        self.write_to_csv = Button(text="Write to CSV", command=self.write_csv)
+        self.write_to_csv = Button(text="Write to CSV", command=lambda:self.write_csv())
         self.write_to_csv.grid(row=7, column=13)
-        self.csv_filename_entry = Entry()
-        self.csv_filename_entry.insert(0,"filename")
-        self.csv_filename_entry.grid(row=7, column=14)
+
+        self.csv_file_destination = StringVar()
+        self.csv_file_destination.set("Choose a desination")
+        self.csv_filepicker = Button(textvariable=self.csv_file_destination, command=lambda:self.save_csv())
+        self.csv_filepicker.grid(row=7, column=14)
 
         self.all_set_bool_var = BooleanVar()
         self.csv_write_all_sets = Checkbutton(text="Row per set", variable=self.all_set_bool_var)
@@ -126,12 +129,13 @@ class lift_block_gui(tk.Frame):
             num_empty_sets_after=3)         Draw n empty sets AFTER, should assign to 2         STATE DEPENDENT ON draw_empty_sets
         '''
 
-        self.pdf_generate_button = Button(text="Write PDF", command=self.generate_PDF)
+        self.pdf_generate_button = Button(text="Write PDF", command=lambda:self.generate_PDF())
         self.pdf_generate_button.grid(row=8, column=13)
 
-        self.pdf_output_name = Entry()
-        self.pdf_output_name.insert(0,"filename")
-        self.pdf_output_name.grid(row=8, column=14)
+        self.pdf_file_destination = StringVar()
+        self.pdf_file_destination.set("Choose a desination")
+        self.write_pdf_button = Button(textvariable=self.pdf_file_destination, command=lambda:self.save_pdf())
+        self.write_pdf_button.grid(row=8, column=14)
 
         self.drawSeperateBool = BooleanVar()
         self.drawSeperate_checkbox = Checkbutton(text="Separate Phases", variable=self.drawSeperateBool)
@@ -232,7 +236,7 @@ class lift_block_gui(tk.Frame):
         except AttributeError:
             self.popup("Pleasae generate a program first")
             return
-        pril_pdf.generate_PDF(self.pdf_output_name.get(),
+        pril_pdf.generate_PDF(self.pdf_file_destination.get(),
             seperate_phases=self.drawSeperateBool.get(),
             notes=None, #TODO:
             draw_RPE=self.drawRPEBool.get(),
@@ -259,21 +263,29 @@ class lift_block_gui(tk.Frame):
             self.before_dropdown.config(state=NORMAL)
             self.after_dropdown.config(state=NORMAL)
 
-            
+    def save_pdf(self):
+        f = filedialog.asksaveasfile(initialfile = 'Untitled.txt', initialdir = "~/Desktop", 
+        defaultextension=".pdf",filetypes=[("PDFs","*.pdf")])
+        self.pdf_file_destination.set(str(f.name))
+
+    def save_csv(self):
+        f = filedialog.asksaveasfile(mode = "a",initialfile = 'Untitled.csv', initialdir = "~/Desktop", 
+        defaultextension=".csv",filetypes=[("CSV","*.csv")])
+        self.csv_file_destination.set(str(f.name))
 
     def debug(self):
         self.lift_name_entry.insert(0,"Deadlift")
         self.lift_start_entry.insert(0,"195")
         self.lift_end_entry.insert(0,"225")
-        self.frequency_counter.set(3)
-        self.desired_frequency.set(3)
+        self.frequency_counter.set(1)
+        self.desired_frequency.set(1)
         self.phases[0].set_default()
 
     def write_csv(self):
         if self.pril_program == None:
             self.popup("No program has been generated yet")
         else:
-            self.pril_program.as_csv(filename=self.csv_filename_entry.get().replace(".csv","")+".csv", seperate_sets=self.all_set_bool_var.get())
+            self.pril_program.as_csv(full_path=self.csv_file_destination.get().replace(".csv","")+".csv", seperate_sets=self.all_set_bool_var.get())
             self.popup("Done writing to CSV")
 
     def next_graph(self):
